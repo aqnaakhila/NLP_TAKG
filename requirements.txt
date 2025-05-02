@@ -1,0 +1,6 @@
+kaggle == 1.7.4.2
+pandas == 2.2.3
+scikit-learn == 1.6.1
+torch == 2.7.0
+config == 0.5.1
+gensim == 4.3.3
