@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
     config.vocab_opts(parser)
     opt = parser.parse_args()
-    opt.data_dir = 'data/news/'
+    opt.data_dir = 'data2/news/'
     opt.train_src = opt.data_dir + 'train.src'
     opt.train_trg = opt.data_dir + 'train.trg'
     opt.valid_src = opt.data_dir + 'valid.src'
@@ -230,11 +230,11 @@ if __name__ == "__main__":
 
     data_fn = opt.data_dir.rstrip('/').split('/')[-1] + '_s{}_t{}'.format(opt.max_src_len, opt.max_trg_len)
 
-    opt.process_data = "processed_data"
+    opt.process_data = "processed_data2"
     if not os.path.exists(opt.process_data):
         os.mkdir(opt.process_data)
 
-    opt.res_data_dir = "processed_data/%s" % data_fn
+    opt.res_data_dir = "processed_data2/%s" % data_fn
     if not os.path.exists(opt.res_data_dir):
         os.mkdir(opt.res_data_dir)
 

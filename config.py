@@ -347,7 +347,7 @@ def train_opts(parser):
                         help="The maximum number of batches to apply scheduled sampling")
 
     # learning rate
-    parser.add_argument('-learning_rate', type=float, default=0.01,
+    parser.add_argument('-learning_rate', type=float, default=0.001,
                         help="""Starting learning rate.
                         Recommended settings: sgd = 1, adagrad = 0.1,
                         adadelta = 1, adam = 0.001""")
@@ -378,7 +378,7 @@ def train_opts(parser):
     #                    help="Run validation test at this interval (every run_valid_every batches)")
     parser.add_argument('-early_stop_rl', action="store_true", default=False,
                         help="A flag to use early stopping in rl training.")
-    parser.add_argument('-early_stop_tolerance', type=int, default=3,
+    parser.add_argument('-early_stop_tolerance', type=int, default=1,
                         help="Stop training if it doesn't improve any more for several rounds of validation")
 
     timemark = time.strftime('%Y%m%d-%H%M%S', time.localtime(time.time()))
