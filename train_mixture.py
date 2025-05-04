@@ -112,6 +112,9 @@ def train_model(model, ntm_model, optimizer_ml, optimizer_ntm, optimizer_whole, 
         ntm_model.load_state_dict(torch.load(opt.check_pt_ntm_model_path))
 
     if opt.only_train_ntm:
+        save_path = os.path.join(opt.model_path, "ntm_model.pt")
+        torch.save(ntm_model.state_dict(), open(save_path, 'wb'))
+        logging.info(f"Saved final NTM model to {save_path}")
         return
 
     total_batch = 0
@@ -301,6 +304,9 @@ def train_model(model, ntm_model, optimizer_ml, optimizer_ntm, optimizer_whole, 
         #     if opt.joint_train:
         #         ntm_model.print_topic_words(bow_dictionary, os.path.join(opt.model_path, 'topwords_e%d.txt' % epoch))
 
+    save_path_seq = os.path.join(opt.model_path, "seq2seq_model.pt")
+    torch.save(model.state_dict(), open(save_path_seq, 'wb'))
+    logging.info(f"Saved final Seq2Seq model to {save_path_seq}")
     return check_pt_model_path
 
 

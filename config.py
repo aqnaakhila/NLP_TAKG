@@ -255,7 +255,7 @@ def train_opts(parser):
                         help="Fix word embeddings on the encoder side.")
 
     # Optimization options
-    parser.add_argument('-batch_size', type=int, default=64,
+    parser.add_argument('-batch_size', type=int, default=128,
                         help='Maximum batch size')
     parser.add_argument('-batch_workers', type=int, default=4,
                         help='Number of workers for generating batches')
@@ -347,7 +347,7 @@ def train_opts(parser):
                         help="The maximum number of batches to apply scheduled sampling")
 
     # learning rate
-    parser.add_argument('-learning_rate', type=float, default=0.001,
+    parser.add_argument('-learning_rate', type=float, default=0.00001,
                         help="""Starting learning rate.
                         Recommended settings: sgd = 1, adagrad = 0.1,
                         adadelta = 1, adam = 0.001""")
@@ -378,7 +378,7 @@ def train_opts(parser):
     #                    help="Run validation test at this interval (every run_valid_every batches)")
     parser.add_argument('-early_stop_rl', action="store_true", default=False,
                         help="A flag to use early stopping in rl training.")
-    parser.add_argument('-early_stop_tolerance', type=int, default=1,
+    parser.add_argument('-early_stop_tolerance', type=int, default=3,
                         help="Stop training if it doesn't improve any more for several rounds of validation")
 
     timemark = time.strftime('%Y%m%d-%H%M%S', time.localtime(time.time()))

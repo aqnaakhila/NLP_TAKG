@@ -36,7 +36,7 @@ def process_opt(opt):
         opt.delimiter_word = EOS_WORD
 
     # my configuration
-    opt.data = "processed_data2/{}/".format(opt.data_tag)
+    opt.data = "processed_data/{}/".format(opt.data_tag)
     opt.vocab = opt.data
     opt.exp = 'trial.' + opt.data_tag if opt.trial else opt.data_tag
 

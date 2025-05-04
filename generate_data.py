@@ -7,7 +7,7 @@ import pickle
 from sympy.logic.inference import valid
 
 # 1. Siapkan direktori
-os.makedirs("data2/news", exist_ok=True)
+os.makedirs("data/news", exist_ok=True)
 
 # 3. Load stopwords
 def load_stopwords(path):
@@ -72,12 +72,13 @@ df['keyphrases'] = [get_top_keywords(X[i], 5) for i in range(len(df))]
 # df['keyphrases'] = [get_top_keywords(X_new[i], 5) for i in range(len(df))]
 
 # 8. Split: train, valid, test
-total = len(df)
-
-train_end = int(0.7 * total)
-valid_end = int(0.9 * total)
-
-train, valid, test = df[:train_end], df[train_end:valid_end], df[valid_end:]
+# total = len(df)
+#
+# train_end = int(0.7 * total)
+# valid_end = int(0.9 * total)
+#
+# train, valid, test = df[:train_end], df[train_end:valid_end], df[valid_end:]
+train, valid, test = df[:40000], df[40000:44000], df[44000:48000]
 
 # 9. Simpan ke file
 def save_to_file(df_part, prefix):
@@ -87,9 +88,9 @@ def save_to_file(df_part, prefix):
             src_file.write(row['text'].strip() + "\n")
             trg_file.write(row['keyphrases'].strip() + "\n")
 
-save_to_file(train, "data2/news/train")
-save_to_file(valid, "data2/news/valid")
-save_to_file(test, "data2/news/test")
+save_to_file(train, "data/news/train")
+save_to_file(valid, "data/news/valid")
+save_to_file(test, "data/news/test")
 
 print(len(train))
 print(len(valid))
