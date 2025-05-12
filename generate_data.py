@@ -82,8 +82,8 @@ train, valid, test = df[:40000], df[40000:44000], df[44000:48000]
 
 # 9. Simpan ke file
 def save_to_file(df_part, prefix):
-    with open(f"{prefix}.src", "w", encoding="utf-8") as src_file, \
-         open(f"{prefix}.trg", "w", encoding="utf-8") as trg_file:
+    with open(f"{prefix}_src.txt", "w", encoding="utf-8") as src_file, \
+         open(f"{prefix}_trg.txt", "w", encoding="utf-8") as trg_file:
         for _, row in df_part.iterrows():
             src_file.write(row['text'].strip() + "\n")
             trg_file.write(row['keyphrases'].strip() + "\n")

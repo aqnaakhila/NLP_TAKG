@@ -198,7 +198,7 @@ def train_model(model, ntm_model, optimizer_ml, optimizer_ntm, optimizer_whole, 
                 num_stop_dropping = 0
                 num_stop_dropping_global = 0
                 if epoch >= opt.start_checkpoint_at and epoch > opt.p_seq2seq_e and not opt.save_each_epoch:
-                    check_pt_model_path = os.path.join(opt.model_path, 'e%d.val_loss=%.3f.model-%s' %
+                    check_pt_model_path = os.path.join(opt.model_path, 'e%d.val_loss=%.3f.model-%s.' %
                                                        (epoch, current_valid_loss, convert_time2str(time.time() - t0)))
                     # save model parameters
                     torch.save(

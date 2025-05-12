@@ -3,8 +3,9 @@ import argparse
 import config
 from collections import defaultdict
 import os
-import pykp
+import pykp.io
 import time
+from utils.string_helper import *
 np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -734,75 +735,80 @@ def main(opt):
 
     t0 = time.time()
 
-    for data_idx, (src_l, trg_l, pred_l) in enumerate(zip(open(src_file_path), open(trg_file_path), open(pred_file_path))):
-        num_src += 1
-        # convert the str to token list
-        pred_str_list = pred_l.strip().split(';')
-        pred_str_list = pred_str_list[:opt.num_preds]
-        pred_token_2dlist = [pred_str.strip().split(' ') for pred_str in pred_str_list]
-        trg_str_list = trg_l.strip().split(';')
-        trg_token_2dlist = [trg_str.strip().split(' ') for trg_str in trg_str_list]
-        # [title, context] = src_l.strip().split('<eos>')
-        # src_token_list = title.strip().split(' ') + context.strip().split(' ')
-        src_token_list = src_l.strip().split()
+    with open(src_file_path, encoding='utf-8') as src_f, \
+            open(trg_file_path, encoding='utf-8') as trg_f, \
+            open(pred_file_path, encoding='utf-8') as pred_f:
 
-        num_predictions = len(pred_str_list)
 
-        # perform stemming
-        stemmed_src_token_list = stem_word_list(src_token_list)
-        stemmed_trg_token_2dlist = stem_str_list(trg_token_2dlist)
-        stemmed_pred_token_2dlist = stem_str_list(pred_token_2dlist)
+        for data_idx, (src_l, trg_l, pred_l) in enumerate(zip(src_f, trg_f, pred_f)):
+            num_src += 1
+            # convert the str to token list
+            pred_str_list = pred_l.strip().split(';')
+            pred_str_list = pred_str_list[:opt.num_preds]
+            pred_token_2dlist = [pred_str.strip().split(' ') for pred_str in pred_str_list]
+            trg_str_list = trg_l.strip().split(';')
+            trg_token_2dlist = [trg_str.strip().split(' ') for trg_str in trg_str_list]
+            # [title, context] = src_l.strip().split('<eos>')
+            # src_token_list = title.strip().split(' ') + context.strip().split(' ')
+            src_token_list = src_l.strip().split()
 
-        # Filter out duplicate, invalid, and extra one word predictions
-        filtered_stemmed_pred_token_2dlist, num_duplicated_predictions = filter_prediction(opt.disable_valid_filter, opt.disable_extra_one_word_filter, stemmed_pred_token_2dlist)
-        num_unique_predictions += (num_predictions - num_duplicated_predictions)
+            num_predictions = len(pred_str_list)
 
-        # Remove duplicated targets
-        unique_stemmed_trg_token_2dlist, num_duplicated_trg = find_unique_target(stemmed_trg_token_2dlist)
-        max_unique_targets += (num_predictions - num_duplicated_trg)
+            # perform stemming
+            stemmed_src_token_list = stem_word_list(src_token_list)
+            stemmed_trg_token_2dlist = stem_str_list(trg_token_2dlist)
+            stemmed_pred_token_2dlist = stem_str_list(pred_token_2dlist)
 
-        current_unique_targets = len(unique_stemmed_trg_token_2dlist)
-        if current_unique_targets > max_unique_targets:
-            max_unique_targets = current_unique_targets
+            # Filter out duplicate, invalid, and extra one word predictions
+            filtered_stemmed_pred_token_2dlist, num_duplicated_predictions = filter_prediction(opt.disable_valid_filter, opt.disable_extra_one_word_filter, stemmed_pred_token_2dlist)
+            num_unique_predictions += (num_predictions - num_duplicated_predictions)
 
-        # separate present and absent keyphrases
-        present_filtered_stemmed_pred_token_2dlist, absent_filtered_stemmed_pred_token_2dlist = separate_present_absent_by_source(stemmed_src_token_list, filtered_stemmed_pred_token_2dlist, opt.match_by_str)
-        if opt.target_separated:
-            if opt.reverse_sorting:
-                absent_unique_stemmed_trg_token_2dlist, present_unique_stemmed_trg_token_2dlist = separate_present_absent_by_segmenter(
-                    unique_stemmed_trg_token_2dlist, present_absent_segmenter)
+            # Remove duplicated targets
+            unique_stemmed_trg_token_2dlist, num_duplicated_trg = find_unique_target(stemmed_trg_token_2dlist)
+            max_unique_targets += (num_predictions - num_duplicated_trg)
+
+            current_unique_targets = len(unique_stemmed_trg_token_2dlist)
+            if current_unique_targets > max_unique_targets:
+                max_unique_targets = current_unique_targets
+
+            # separate present and absent keyphrases
+            present_filtered_stemmed_pred_token_2dlist, absent_filtered_stemmed_pred_token_2dlist = separate_present_absent_by_source(stemmed_src_token_list, filtered_stemmed_pred_token_2dlist, opt.match_by_str)
+            if opt.target_separated:
+                if opt.reverse_sorting:
+                    absent_unique_stemmed_trg_token_2dlist, present_unique_stemmed_trg_token_2dlist = separate_present_absent_by_segmenter(
+                        unique_stemmed_trg_token_2dlist, present_absent_segmenter)
+                else:
+                    present_unique_stemmed_trg_token_2dlist, absent_unique_stemmed_trg_token_2dlist = separate_present_absent_by_segmenter(
+                        unique_stemmed_trg_token_2dlist, present_absent_segmenter)
             else:
-                present_unique_stemmed_trg_token_2dlist, absent_unique_stemmed_trg_token_2dlist = separate_present_absent_by_segmenter(
-                    unique_stemmed_trg_token_2dlist, present_absent_segmenter)
-        else:
-            present_unique_stemmed_trg_token_2dlist, absent_unique_stemmed_trg_token_2dlist = separate_present_absent_by_source(
-                stemmed_src_token_list, unique_stemmed_trg_token_2dlist, opt.match_by_str)
-        num_present_filtered_predictions += len(present_filtered_stemmed_pred_token_2dlist)
-        num_present_unique_targets += len(present_unique_stemmed_trg_token_2dlist)
-        num_absent_filtered_predictions += len(absent_filtered_stemmed_pred_token_2dlist)
-        num_absent_unique_targets += len(absent_unique_stemmed_trg_token_2dlist)
+                present_unique_stemmed_trg_token_2dlist, absent_unique_stemmed_trg_token_2dlist = separate_present_absent_by_source(
+                    stemmed_src_token_list, unique_stemmed_trg_token_2dlist, opt.match_by_str)
+            num_present_filtered_predictions += len(present_filtered_stemmed_pred_token_2dlist)
+            num_present_unique_targets += len(present_unique_stemmed_trg_token_2dlist)
+            num_absent_filtered_predictions += len(absent_filtered_stemmed_pred_token_2dlist)
+            num_absent_unique_targets += len(absent_unique_stemmed_trg_token_2dlist)
 
-        # compute all the metrics and update the score_dict
-        score_dict = update_score_dict(unique_stemmed_trg_token_2dlist, filtered_stemmed_pred_token_2dlist,
-                                       topk_dict['all'], score_dict, 'all')
-        # compute all the metrics and update the score_dict for present keyphrase
-        if present_unique_stemmed_trg_token_2dlist:
-            score_dict = update_score_dict(present_unique_stemmed_trg_token_2dlist, present_filtered_stemmed_pred_token_2dlist,
-                                           topk_dict['present'], score_dict, 'present')
-        # compute all the metrics and update the score_dict for present keyphrase
-        if absent_unique_stemmed_trg_token_2dlist:
-            score_dict = update_score_dict(absent_unique_stemmed_trg_token_2dlist, absent_filtered_stemmed_pred_token_2dlist,
-                                           topk_dict['absent'], score_dict, 'absent')
+            # compute all the metrics and update the score_dict
+            score_dict = update_score_dict(unique_stemmed_trg_token_2dlist, filtered_stemmed_pred_token_2dlist,
+                                           topk_dict['all'], score_dict, 'all')
+            # compute all the metrics and update the score_dict for present keyphrase
+            if present_unique_stemmed_trg_token_2dlist:
+                score_dict = update_score_dict(present_unique_stemmed_trg_token_2dlist, present_filtered_stemmed_pred_token_2dlist,
+                                               topk_dict['present'], score_dict, 'present')
+            # compute all the metrics and update the score_dict for present keyphrase
+            if absent_unique_stemmed_trg_token_2dlist:
+                score_dict = update_score_dict(absent_unique_stemmed_trg_token_2dlist, absent_filtered_stemmed_pred_token_2dlist,
+                                               topk_dict['absent'], score_dict, 'absent')
 
-        if opt.export_filtered_pred:
-            final_pred_str_list = []
-            for word_list in filtered_stemmed_pred_token_2dlist:
-                final_pred_str_list.append(' '.join(word_list))
-            pred_print_out = ';'.join(final_pred_str_list) + '\n'
-            pred_output_file.write(pred_print_out)
+            if opt.export_filtered_pred:
+                final_pred_str_list = []
+                for word_list in filtered_stemmed_pred_token_2dlist:
+                    final_pred_str_list.append(' '.join(word_list))
+                pred_print_out = ';'.join(final_pred_str_list) + '\n'
+                pred_output_file.write(pred_print_out)
 
-        if (data_idx + 1) % 1000 == 0:
-            print("Processing %d lines and takes %.2f" % (data_idx+1, time.time()-t0))
+            if (data_idx + 1) % 1000 == 0:
+                print("Processing %d lines and takes %.2f" % (data_idx+1, time.time()-t0))
 
     if opt.export_filtered_pred:
         pred_output_file.close()
@@ -879,8 +885,12 @@ def report_classification_scores(score_dict, topk_list, present_tag):
             score_dict['precision@{}_{}'.format(topk, present_tag)])
         macro_avg_recall_k = sum(score_dict['recall@{}_{}'.format(topk, present_tag)]) / len(
             score_dict['recall@{}_{}'.format(topk, present_tag)])
-        macro_avg_f1_score_k = float(2 * macro_avg_precision_k * macro_avg_recall_k) / (
-                macro_avg_precision_k + macro_avg_recall_k)
+        if macro_avg_precision_k + macro_avg_recall_k == 0:
+            macro_avg_f1_score_k = 0.0
+        else:
+            macro_avg_f1_score_k = float(2 * macro_avg_precision_k * macro_avg_recall_k) / (
+                    macro_avg_precision_k + macro_avg_recall_k)
+
         output_str += ("Begin===============classification metrics {}@{}===============Begin\n".format(present_tag, topk))
         output_str += ("#target: {}, #predictions: {}, #corrects: {}\n".format(total_predictions_k, total_targets_k, total_num_matches_k))
         output_str += "Micro:\tP@{}={:.5}\tR@{}={:.5}\tF1@{}={:.5}\n".format(topk, micro_avg_precision_k, topk, micro_avg_recall_k, topk, micro_avg_f1_score_k)

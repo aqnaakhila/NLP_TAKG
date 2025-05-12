@@ -4,6 +4,7 @@ import torch
 # from pykp.metric.bleu import bleu
 from pykp.masked_loss import masked_cross_entropy
 from utils.statistics import LossStatistics
+from utils.string_helper import *
 import time
 from utils.time_log import time_since
 # from nltk.stem.porter import *

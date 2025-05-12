@@ -72,10 +72,17 @@ class Beam:
         hyp, attn = [], []
         # iterate from output sequence length (with eos but not bos) - 1 to 0f
         for j in range(len(self.prev_ks[:timestep]) -1, -1, -1):
-            hyp.append(self.next_ys[j + 1][k])  # j+1 so that it will iterate from the <eos> token, and end before the <bos>
-            attn.append(self.attn[j][k])  # since it does not has attn for bos, it will also iterate from the attn for <eos>
+            # print(f"Type of k: {type(k)}, Dtype of k: {k.dtype if isinstance(k, torch.Tensor) else 'Not a Tensor'}")
+            # print(f"Type of j: {type(j)}, Value of j: {j}") # Jika perlu
+            index_k = k
+            if isinstance(k, torch.Tensor):
+                index_k = k.long()
+
+            hyp.append(self.next_ys[j + 1][index_k])
+            # hyp.append(self.next_ys[j + 1][k])  # j+1 so that it will iterate from the <eos> token, and end before the <bos>
+            attn.append(self.attn[j][index_k])  # since it does not has attn for bos, it will also iterate from the attn for <eos>
             # attn[j][k] Tensor with size [src_len]
-            k = self.prev_ks[j][k]  # find the beam idx of the previous token
+            k = self.prev_ks[j][index_k]  # find the beam idx of the previous token
 
         # hyp[::-1]: a list of idx (zero dim tensor), with len = output sequence length
         # torch.stack(attn): FloatTensor, with size: [output sequence length, src_len]
@@ -143,7 +150,7 @@ class Beam:
         prev_k = best_scores_idx / vocab_size  # convert it to the beam indices that the top k scores came from, LongTensor, size: [beam_size]
         self.prev_ks.append(prev_k)
         self.next_ys.append((best_scores_idx - prev_k * vocab_size))  # convert it to the vocab indices, LongTensor, size: [beam_size]
-        self.attn.append(attn_dist.index_select(0, prev_k))  # select the attention dist from the corresponding beam, size: [beam_size, src_len]
+        self.attn.append(attn_dist.index_select(0, prev_k.to(torch.int64)))  # select the attention dist from the corresponding beam, size: [beam_size, src_len]
         self.global_scorer.update_global_state(self)  # update coverage vector, previous coverage penalty, and cov_total
         self.update_eos_counter()  # update the eos_counter according to prev_ks
 
@@ -181,7 +188,7 @@ class Beam:
 
     def update_eos_counter(self):
         # update the eos_counter according to prev_ks
-        self.eos_counters = self.eos_counters.index_select(0, self.prev_ks[-1])
+        self.eos_counters = self.eos_counters.index_select(0, self.prev_ks[-1].long())
 
 
 class GNMTGlobalScorer:
@@ -242,7 +249,7 @@ class GNMTGlobalScorer:
             self.cov_total += torch.min(beam.attn[-1],
                                         beam.global_state['coverage']).sum(1)
             beam.global_state["coverage"] = beam.global_state["coverage"] \
-                .index_select(0, beam.prev_ks[-1]).add(beam.attn[-1])  # accumulate coverage vector
+                .index_select(0, beam.prev_ks[-1].long()).add(beam.attn[-1])  # accumulate coverage vector
 
             prev_penalty = self.cov_penalty(beam,
                                             beam.global_state["coverage"],

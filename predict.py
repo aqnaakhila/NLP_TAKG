@@ -45,7 +45,7 @@ def process_opt(opt):
         opt.gpuid = -1
         print("CUDA is not available, fall back to CPU.")
 
-    # assert opt.model.count('/') == 2 and all([tag in opt.model for tag in ['vs', 'emb', 'dec', 'model']])
+    assert opt.model.count('/') == 2 and all([tag in opt.model for tag in ['vs', 'emb', 'dec', 'model']])
     opt.vocab_size = [int(w.replace('vs', '')) for w in opt.model.split('.') if w.startswith('vs')][0]
     opt.word_vec_size = [int(w.replace('emb', '')) for w in opt.model.split('.') if w.startswith('emb')][0]
     opt.decoder_size = [int(w.replace('dec', '')) for w in opt.model.split('.') if w.startswith('dec')][0]

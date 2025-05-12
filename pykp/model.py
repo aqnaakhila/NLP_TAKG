@@ -119,10 +119,15 @@ class Seq2SeqModel(nn.Module):
         """
         batch_size, max_src_len = list(src.size())
 
+        print(f"src dtype before encoding: {src.dtype}")
+
         # Encoding
-        memory_bank, encoder_final_state = self.encoder(src, src_lens)
+        memory_bank, encoder_final_state = self.encoder(src, src_lens, )
         assert memory_bank.size() == torch.Size([batch_size, max_src_len, self.num_directions * self.encoder_size])
         assert encoder_final_state.size() == torch.Size([batch_size, self.num_directions * self.encoder_size])
+
+        print(f"src_lens tipe: {src_lens.dtype}")
+        print(f"src_mask tipe: {src_mask.dtype}")
 
         # Decoding
         h_t_init = self.init_decoder_state(encoder_final_state)  # [dec_layers, batch_size, decoder_size]

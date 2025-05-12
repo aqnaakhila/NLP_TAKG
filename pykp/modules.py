@@ -398,6 +398,8 @@ class RNNDecoder(nn.Module):
         assert h.size() == torch.Size([self.num_layers, batch_size, self.hidden_size])
 
         # init input embedding
+        y = y.long()
+        print("Tipe Y", y.dtype)
         y_emb = self.embedding(y).unsqueeze(0)  # [1, batch_size, embed_size]
 
         if self.use_topic_represent and self.topic_dec:

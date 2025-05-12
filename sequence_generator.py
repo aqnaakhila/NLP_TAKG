@@ -3,7 +3,9 @@ Adapted from
 OpenNMT-py: https://github.com/OpenNMT/OpenNMT-py
 and seq2seq-keyphrase-pytorch: https://github.com/memray/seq2seq-keyphrase-pytorch
 """
-
+import sys
+import pykp
+import logging
 import torch
 from beam import Beam
 from beam import GNMTGlobalScorer
@@ -143,7 +145,7 @@ class SequenceGenerator(object):
                                 for t in self.ignore_when_blocking])
 
         beam_list = [
-            Beam(beam_size, n_best=self.n_best, cuda=self.cuda, global_scorer=self.global_scorer, pad=self.pad_idx,
+            Beam(beam_size, n_best=self.n_best, global_scorer=self.global_scorer, pad=self.pad_idx,
                  eos=self.eos_idx, bos=self.bos_idx, max_eos_per_output_seq=max_eos_per_output_seq,
                  block_ngram_repeat=self.block_ngram_repeat, exclusion_tokens=exclusion_tokens) for _ in
             range(batch_size)]
@@ -239,7 +241,7 @@ class SequenceGenerator(object):
         decoder_state_transformed = decoder_state.view(decoder_layers, self.beam_size, original_batch_size,
                                                        decoder_size)[:, :, batch_idx]
         # select the hidden states of the beams specified by the beam_indices -> [dec_layers, beam_size, decoder_size]
-        decoder_state_transformed.data.copy_(decoder_state_transformed.data.index_select(1, beam_indices))
+        decoder_state_transformed.data.copy_(decoder_state_transformed.data.index_select(1, beam_indices.long()))
 
         if decoder_memory_bank is not None:
             # [batch_size * beam_size, t+1, decoder_size] -> [beam_size, t-1, decoder_size]
@@ -283,7 +285,7 @@ class SequenceGenerator(object):
         decoder_input = src.new_ones(batch_size) * self.bos_idx  # [batch_size]
         sample_list = [{"prediction": [], "attention": [], "done": False} for _ in range(batch_size)]
         log_selected_token_dist = []
-        # prediction_all = src.new_ones(batch_size, max_sample_length) * self.pad_idx
+        prediction_all = src.new_ones(batch_size, max_sample_length) * self.pad_idx
 
         # unfinished_mask = torch.ones(batch_size, 1).type(torch.ByteTensor)  # all seqs in a batch are unfinihsed at the beginning
         unfinished_mask = src.new_ones((batch_size, 1), dtype=torch.uint8)
@@ -320,7 +322,7 @@ class SequenceGenerator(object):
 
             prediction = prediction * unfinished_mask.type_as(prediction)
 
-            # prediction_all[:, t] = prediction[:, 0]
+            prediction_all[:, t] = prediction[:, 0]
             decoder_input = prediction[:, 0]  # [batch]
 
             if all((s['done'] for s in sample_list)):
@@ -332,12 +334,15 @@ class SequenceGenerator(object):
 
         log_selected_token_dist = torch.cat(log_selected_token_dist, dim=1)  # [batch, t]
         assert log_selected_token_dist.size() == torch.Size([batch_size, t + 1])
-        # output_mask = torch.ne(prediction_all, self.pad_idx)[:, :t+1]  # [batch, t]
-        # output_mask = output_mask.type(torch.FloatTensor).to(src.device)
+        output_mask = torch.ne(prediction_all, self.pad_idx)[:, :t+1]  # [batch, t]
+        output_mask = output_mask.type(torch.FloatTensor).to(src.device)
 
         unfinished_mask_all = torch.cat(unfinished_mask_all, dim=1).type_as(log_selected_token_dist)
         assert unfinished_mask_all.size() == log_selected_token_dist.size()
-        # assert output_mask.size() == log_selected_token_dist.size()
+        assert output_mask.size() == log_selected_token_dist.size()
+
+        print("unfinished_mask: ", unfinished_mask_all)
+        print("raw predictions: ", prediction_all)
 
         return sample_list, log_selected_token_dist, unfinished_mask_all
 
@@ -389,13 +394,13 @@ class SequenceGenerator(object):
         y_t_init = src.new_ones(batch_size) * self.bos_idx  # [batch_size]
         sample_list = [{"prediction": [], "attention": [], "done": False} for _ in range(batch_size)]
         log_selected_token_dist = []
-        # prediction_all = src.new_ones(batch_size, max_sample_length) * self.pad_idx
+        prediction_all = src.new_ones(batch_size, max_sample_length) * self.pad_idx
 
         unfinished_mask = src.new_ones((batch_size, 1),
                                        dtype=torch.uint8)  # all seqs in a batch are unfinished at the beginning
         unfinished_mask_all = [unfinished_mask]
         pred_counters = src.new_zeros(batch_size, dtype=torch.uint8)  # [batch_size]
-        # pred_idx_all = []  # store the idx of prediction (e.g., the i-th prediction) for each token
+        pred_idx_all = []  # store the idx of prediction (e.g., the i-th prediction) for each token
         re_init_indicators = y_t_init == self.eos_idx
         eos_idx_mask_all = [re_init_indicators.unsqueeze(1)]
 
@@ -509,7 +514,7 @@ class SequenceGenerator(object):
 
             prediction = prediction * unfinished_mask.type_as(prediction)
 
-            # prediction_all[:, t] = prediction[:, 0]
+            prediction_all[:, t] = prediction[:, 0]
             y_t_next = prediction[:, 0]  # [batch]
 
             if all((s['done'] for s in sample_list)):
@@ -525,15 +530,15 @@ class SequenceGenerator(object):
 
         log_selected_token_dist = torch.cat(log_selected_token_dist, dim=1)  # [batch, t]
         assert log_selected_token_dist.size() == torch.Size([batch_size, t + 1])
-        # output_mask = torch.ne(prediction_all, self.pad_idx)[:, :t+1]  # [batch, t]
-        # output_mask = output_mask.type(torch.FloatTensor).to(src.device)
+        output_mask = torch.ne(prediction_all, self.pad_idx)[:, :t+1]  # [batch, t]
+        output_mask = output_mask.type(torch.FloatTensor).to(src.device)
 
         unfinished_mask_all = torch.cat(unfinished_mask_all, dim=1).type_as(log_selected_token_dist)
         assert unfinished_mask_all.size() == log_selected_token_dist.size()
-        # assert output_mask.size() == log_selected_token_dist.size()
+        assert output_mask.size() == log_selected_token_dist.size()
 
-        # pred_idx_all = torch.cat(pred_idx_all, dim=1).type(torch.LongTensor).to(src.device)
-        # assert pred_idx_all.size() == log_selected_token_dist.size()
+        pred_idx_all = torch.cat(pred_idx_all, dim=1).type(torch.LongTensor).to(src.device)
+        assert pred_idx_all.size() == log_selected_token_dist.size()
 
         eos_idx_mask_all = torch.cat(eos_idx_mask_all, dim=1).to(src.device)
         assert eos_idx_mask_all.size() == log_selected_token_dist.size()
@@ -582,7 +587,7 @@ class SequenceGenerator(object):
         y_t_init = src.new_ones(batch_size) * self.bos_idx  # [batch_size]
         sample_list = [{"prediction": [], "attention": [], "done": False} for _ in range(batch_size)]
         log_selected_token_dist = []
-        # prediction_all = src.new_ones(batch_size, max_sample_length) * self.pad_idx
+        prediction_all = src.new_ones(batch_size, max_sample_length) * self.pad_idx
 
         unfinished_mask = src.new_ones((batch_size, 1),
                                        dtype=torch.uint8)  # all seqs in a batch are unfinished at the beginning
@@ -649,7 +654,7 @@ class SequenceGenerator(object):
 
             prediction = prediction * unfinished_mask.type_as(prediction)
 
-            # prediction_all[:, t] = prediction[:, 0]
+            prediction_all[:, t] = prediction[:, 0]
             y_t_next = prediction[:, 0]  # [batch]
 
             if all((s['done'] for s in sample_list)):
@@ -662,11 +667,11 @@ class SequenceGenerator(object):
 
         log_selected_token_dist = torch.cat(log_selected_token_dist, dim=1)  # [batch, t]
         assert log_selected_token_dist.size() == torch.Size([batch_size, t + 1])
-        # output_mask = torch.ne(prediction_all, self.pad_idx)[:, :t+1]  # [batch, t]
-        # output_mask = output_mask.type(torch.FloatTensor).to(src.device)
+        output_mask = torch.ne(prediction_all, self.pad_idx)[:, :t+1]  # [batch, t]
+        output_mask = output_mask.type(torch.FloatTensor).to(src.device)
 
         unfinished_mask_all = torch.cat(unfinished_mask_all, dim=1).type_as(log_selected_token_dist)
         assert unfinished_mask_all.size() == log_selected_token_dist.size()
-        # assert output_mask.size() == log_selected_token_dist.size()
+        assert output_mask.size() == log_selected_token_dist.size()
 
         return sample_list, log_selected_token_dist, unfinished_mask_all
